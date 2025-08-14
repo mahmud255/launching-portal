@@ -14,61 +14,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Configure git author (use GitHub noreply automatically)
-        env:
-          ACTOR: ${{ github.actor }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Configure git author (GitHub noreply keeps email private)
         run: |
-          set -e
-          ID=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/users/$ACTOR | jq -r '.id')
-          EMAIL="${ID}+${ACTOR}@users.noreply.github.com"
-          git config user.name  "$ACTOR"
-          git config user.email "$EMAIL"
-          echo "Using author: $ACTOR <$EMAIL>"
+          git config user.name  'mahmud255'
+          git config user.email 'mahmud255@users.noreply.github.com'
+          git config --list --show-origin
 
-      - name: Rotate accent color in config.json
+      - name: Rotate accent color (pure Node, no extra installs)
         run: |
-          set -e
-          if [ ! -f config.json ]; then
-            cat > config.json <<'JSON'
-{
-  "accent": "#2DD4BF",
-  "palette": ["#2DD4BF","#60A5FA","#A78BFA","#F472B6","#F87171","#F59E0B"]
-}
-JSON
-          fi
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = 'config.json';
+          const DEFAULT = {
+            accent: '#2DD4BF',
+            palette: ['#2DD4BF','#60A5FA','#A78BFA','#F472B6','#F87171','#F59E0B']
+          };
+          let cfg = DEFAULT;
+          if (fs.existsSync(path)) {
+            try {
+              const cur = JSON.parse(fs.readFileSync(path, 'utf8'));
+              cfg = { ...DEFAULT, ...cur };
+              if (!Array.isArray(cfg.palette) || !cfg.palette.length) cfg.palette = DEFAULT.palette;
+            } catch { cfg = DEFAULT; }
+          }
+          const arr = cfg.palette;
+          const idx = Math.max(0, arr.findIndex(c => (c || '').toLowerCase() === (cfg.accent || '').toLowerCase()));
+          const next = arr[(idx + 1) % arr.length];
+          cfg.accent = next;
+          fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+          console.log('accent ->', next);
+          NODE
 
-          PALETTE=$(jq -r '.palette[]?' config.json)
-          if [ -z "$PALETTE" ]; then
-            PALETTE="#2DD4BF
-#60A5FA
-#A78BFA
-#F472B6
-#F87171
-#F59E0B"
-          fi
-
-          CURRENT=$(jq -r '.accent // empty' config.json)
-          ARR=($PALETTE)
-          IDX=-1
-          for i in "${!ARR[@]}"; do
-            if [ "${ARR[$i]}" = "$CURRENT" ]; then IDX=$i; break; fi
-          done
-          NEXT="${ARR[$(( (IDX + 1) % ${#ARR[@]} ))]}"
-
-          TMP=$(mktemp)
-          jq --arg nxt "$NEXT" '.accent = $nxt' config.json > "$TMP" && mv "$TMP" config.json
-          echo "accent: ${CURRENT:-<none>} -> $NEXT"
-
-      - name: Commit & push
+      - name: Commit & push changes (if any)
         run: |
           git add config.json
           if git diff --cached --quiet; then
-            echo 'No changes to commit.'
+            echo "No changes to commit."
             exit 0
           fi
-          git commit -m 'chore: scheduled update'
+          git commit -m "chore: scheduled update"
           git push

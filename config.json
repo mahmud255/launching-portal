@@ -1,5 +1,11 @@
 {
-  "accent": "#2DD4BF",
-  "palette": ["#2DD4BF", "#60A5FA", "#A78BFA", "#F472B6", "#F87171", "#F59E0B"]
+  "accent": "#60A5FA",
+  "palette": [
+    "#2DD4BF",
+    "#60A5FA",
+    "#A78BFA",
+    "#F472B6",
+    "#F87171",
+    "#F59E0B"
+  ]
 }
-

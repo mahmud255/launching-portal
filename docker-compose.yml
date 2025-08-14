@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  web:
+    image: nginx:alpine
+    container_name: maintenance-web
+    restart: unless-stopped
+    environment:
+      TZ: "Asia/Dhaka"
+    volumes:
+      # Compose is in /root/maintenance/public_html, so mount this folder
+      - ./:/usr/share/nginx/html:ro
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+
+      # Tell Traefik which Docker network to use
+      - "traefik.docker.network=traefik"
+
+      # ---- HTTPS router (uses your existing 'https' entrypoint & certresolver) ----
+      - "traefik.http.routers.maintenance.rule=Host(`maintenance.techsolus.io`)"
+      - "traefik.http.routers.maintenance.entrypoints=https"
+      - "traefik.http.routers.maintenance.tls=true"
+      - "traefik.http.routers.maintenance.tls.certresolver=letsencrypt"
+
+      # Service points to nginx inside the container
+      - "traefik.http.services.maintenance.loadbalancer.server.port=80"
+
+      # Optional compression middleware
+      - "traefik.http.middlewares.maintenance-compress.compress=true"
+      - "traefik.http.routers.maintenance.middlewares=maintenance-compress"
+
+      # ---- OPTIONAL: HTTP -> HTTPS redirect (enable if you have an 'http' entrypoint) ----
+      # - "traefik.http.routers.maintenance-http.rule=Host(`maintenance.techsolus.io`)"
+      # - "traefik.http.routers.maintenance-http.entrypoints=http"
+      # - "traefik.http.routers.maintenance-http.middlewares=maintenance-https"
+      # - "traefik.http.middlewares.maintenance-https.redirectscheme.scheme=https"
+
+networks:
+  # Must match the external network your Traefik container is attached to
+  traefik:
+    external: true
+

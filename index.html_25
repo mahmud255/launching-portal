@@ -1,0 +1,167 @@
+<!doctype html>
+<html class="no-js" lang="en">
+
+<!-- PushAlert -->
+<script type="text/javascript">
+        (function(d, t) {
+                var g = d.createElement(t),
+                s = d.getElementsByTagName(t)[0];
+                g.src = "https://cdn.pushalert.co/integrate_5d23abc32b1907d5bb2c361c9362f891.js";
+                s.parentNode.insertBefore(g, s);
+        }(document, "script"));
+</script>
+<!-- End PushAlert -->
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TechSolus – Empowering IT Solutions</title>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/font-awesome.min.css">
+  <link rel="stylesheet" href="js/zoom-slider/vegas.min.css">
+
+  <!-- Inline Styles -->
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+    }
+
+    .zoom-slider-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+
+    .main-area {
+      position: relative;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      text-align: center;
+      padding-top: 120px;
+    }
+
+    .days-counter .digit {
+      font-size: 140px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .txt {
+      font-size: 28px;
+      text-transform: uppercase;
+      display: block;
+      margin-top: -10px;
+    }
+
+    .hour-counter {
+      font-size: 24px;
+      margin-top: 15px;
+      letter-spacing: 2px;
+    }
+
+    .vegas-overlay {
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    @media (max-width: 768px) {
+      .days-counter .digit { font-size: 90px; }
+      .txt { font-size: 18px; }
+      .hour-counter { font-size: 18px; }
+    }
+  </style>
+</head>
+<body class="zoom-slider-bg">
+
+<div class="main-area">
+  <div>
+    <div class="clock-countdown">
+      <div class="days-counter">
+        <div class="digit">
+          <span class="days">00</span>
+          <span class="txt">Days</span>
+        </div>
+      </div>
+      <div class="hour-counter">
+        <span class="hours">00</span><span class="normal">H</span>
+        <span class="minutes">00</span><span class="normal">MN</span>
+        <span class="seconds">00</span><span class="normal">S</span>
+      </div>
+      <p style="font-size: 20px; margin-top: 20px;">Launching September 15, 2025</p>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/vendor/jquery-1.12.4.min.js"></script>
+<script src="js/zoom-slider/vegas.min.js"></script>
+<script>
+  $(document).ready(function () {
+    $(".zoom-slider-bg").vegas({
+      slides: [
+        { src: "img/background/default_5.jpg" },
+        { src: "img/background/default_3.jpg" },
+        { src: "img/background/water_3.jpg" }
+      ],
+      transition: "fade2",
+      transitionDuration: 4000,
+      animation: "kenburnsUp",
+      delay: 7000,
+      overlay: true,
+      timer: false
+    });
+  });
+
+  // Countdown logic
+  function updateCountdown(targetDate) {
+    const daysSpan = document.querySelector(".days");
+    const hoursSpan = document.querySelector(".hours");
+    const minutesSpan = document.querySelector(".minutes");
+    const secondsSpan = document.querySelector(".seconds");
+
+    function refresh() {
+      const now = new Date();
+      const distance = targetDate - now;
+
+      if (distance <= 0) {
+        daysSpan.textContent = "00";
+        hoursSpan.textContent = "00";
+        minutesSpan.textContent = "00";
+        secondsSpan.textContent = "00";
+        clearInterval(interval);
+        return;
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+      daysSpan.textContent = String(days).padStart(2, "0");
+      hoursSpan.textContent = String(hours).padStart(2, "0");
+      minutesSpan.textContent = String(minutes).padStart(2, "0");
+      secondsSpan.textContent = String(seconds).padStart(2, "0");
+    }
+
+    refresh();
+    const interval = setInterval(refresh, 1000);
+  }
+
+  const launchDate = new Date("2025-09-15T00:00:00+06:00");
+  updateCountdown(launchDate);
+</script>
+
+</body>
+</html>
+

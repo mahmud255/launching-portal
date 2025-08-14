@@ -14,25 +14,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure git author
-        run: |
-          AUTHOR_NAME="${{ github.actor }}"
-          AUTHOR_EMAIL="${{ secrets.NOREPLY_EMAIL }}"
-          if [ -z "$AUTHOR_EMAIL" ]; then
-            AUTHOR_EMAIL="${{ github.actor }}@users.noreply.github.com"
-          fi
-          git config user.name  "$AUTHOR_NAME"
-          git config user.email "$AUTHOR_EMAIL"
-          echo "Author: $AUTHOR_NAME <$AUTHOR_EMAIL>"
-
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Configure git author (use GitHub noreply automatically)
+        env:
+          ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          ID=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/users/$ACTOR | jq -r '.id')
+          EMAIL="${ID}+${ACTOR}@users.noreply.github.com"
+          git config user.name  "$ACTOR"
+          git config user.email "$EMAIL"
+          echo "Using author: $ACTOR <$EMAIL>"
 
       - name: Rotate accent color in config.json
         run: |
           set -e
           if [ ! -f config.json ]; then
-            echo '{"accent":"#2DD4BF","palette":["#2DD4BF","#60A5FA","#A78BFA","#F472B6","#F87171","#F59E0B"]}' > config.json
+            cat > config.json <<'JSON'
+{
+  "accent": "#2DD4BF",
+  "palette": ["#2DD4BF","#60A5FA","#A78BFA","#F472B6","#F87171","#F59E0B"]
+}
+JSON
           fi
 
           PALETTE=$(jq -r '.palette[]?' config.json)
@@ -61,8 +67,8 @@ jobs:
         run: |
           git add config.json
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo 'No changes to commit.'
             exit 0
           fi
-          git commit -m "chore: scheduled update"
+          git commit -m 'chore: scheduled update'
           git push

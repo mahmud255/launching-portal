@@ -2,7 +2,7 @@ name: Auto update (every 3 days)
 
 on:
   schedule:
-    - cron: "0 3 */3 * *"    # ~09:00 Asia/Dhaka
+    - cron: "0 3 */3 * *"   # ~09:00 Asia/Dhaka
   workflow_dispatch: {}
 
 permissions:
@@ -11,50 +11,48 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    env:
-      AUTHOR_NAME: ${{ github.repository_owner }}
-      AUTHOR_EMAIL: ${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure git author
+      - name: Configure git author (uses your noreply if provided)
+        shell: bash
         run: |
-          git config user.name  "${AUTHOR_NAME}"
-          git config user.email "${AUTHOR_EMAIL}"
-          echo "Author: ${AUTHOR_NAME} <${AUTHOR_EMAIL}>"
+          AUTHOR_NAME="${{ github.actor }}"
+          # If you add a repo secret named NOREPLY_EMAIL, we'll use it. Otherwise fallback.
+          AUTHOR_EMAIL="${{ secrets.NOREPLY_EMAIL }}"
+          if [ -z "$AUTHOR_EMAIL" ]; then
+            AUTHOR_EMAIL="${{ github.actor }}@users.noreply.github.com"
+          fi
+          git config user.name  "$AUTHOR_NAME"
+          git config user.email "$AUTHOR_EMAIL"
+          echo "Author: $AUTHOR_NAME <$AUTHOR_EMAIL>"
 
-      - name: Ensure jq present
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Rotate accent color in config.json
+      - name: Rotate accent color in config.json (Node script)
         shell: bash
         run: |
           set -e
-          if [ ! -f config.json ]; then
-            echo '{"accent":"#2DD4BF","palette":["#2DD4BF","#60A5FA","#A78BFA","#F472B6","#F87171","#F59E0B"]}' > config.json
-          fi
-
-          PALETTE=$(jq -r '.palette[]?' config.json)
-          if [ -z "$PALETTE" ]; then
-            PALETTE="#2DD4BF
-#60A5FA
-#A78BFA
-#F472B6
-#F87171
-#F59E0B"
-          fi
-
-          CURRENT=$(jq -r '.accent // empty' config.json)
-          ARR=($PALETTE)
-          IDX=-1
-          for i in "${!ARR[@]}"; do
-            if [ "${ARR[$i]}" = "$CURRENT" ]; then IDX=$i; break; fi
-          done
-          NEXT="${ARR[$(( (IDX + 1) % ${#ARR[@]} ))]}"
-
-          tmp=$(mktemp)
-          jq --arg nxt "$NEXT" '.accent = $nxt' config.json > "$tmp" && mv "$tmp" config.json
-          echo "accent: ${CURRENT:-<none>} -> $NEXT"
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = 'config.json';
+          const DEFAULT = {
+            accent: '#2DD4BF',
+            palette: ['#2DD4BF','#60A5FA','#A78BFA','#F472B6','#F87171','#F59E0B']
+          };
+          let cfg = DEFAULT;
+          if (fs.existsSync(path)) {
+            try {
+              const cur = JSON.parse(fs.readFileSync(path, 'utf8'));
+              cfg = { ...DEFAULT, ...cur };
+              if (!Array.isArray(cfg.palette) || cfg.palette.length === 0) cfg.palette = DEFAULT.palette;
+            } catch { cfg = DEFAULT; }
+          }
+          const arr = cfg.palette;
+          const idx = Math.max(0, arr.findIndex(c => c === cfg.accent));
+          const next = arr[(idx + 1) % arr.length];
+          cfg.accent = next;
+          fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+          console.log(`accent rotated -> ${next}`);
+          NODE
 
       - name: Publish one queued note (optional)
         shell: bash
@@ -72,6 +70,7 @@ jobs:
           fi
 
       - name: Commit & push
+        shell: bash
         run: |
           git add config.json NOTES.md queue.txt 2>/dev/null || true
           if git diff --cached --quiet; then

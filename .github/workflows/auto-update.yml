@@ -1,0 +1,82 @@
+name: Auto update (every 3 days)
+
+on:
+  schedule:
+    - cron: "0 3 */3 * *"    # ~09:00 Asia/Dhaka
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      AUTHOR_NAME: ${{ github.repository_owner }}
+      AUTHOR_EMAIL: ${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure git author
+        run: |
+          git config user.name  "${AUTHOR_NAME}"
+          git config user.email "${AUTHOR_EMAIL}"
+          echo "Author: ${AUTHOR_NAME} <${AUTHOR_EMAIL}>"
+
+      - name: Ensure jq present
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Rotate accent color in config.json
+        shell: bash
+        run: |
+          set -e
+          if [ ! -f config.json ]; then
+            echo '{"accent":"#2DD4BF","palette":["#2DD4BF","#60A5FA","#A78BFA","#F472B6","#F87171","#F59E0B"]}' > config.json
+          fi
+
+          PALETTE=$(jq -r '.palette[]?' config.json)
+          if [ -z "$PALETTE" ]; then
+            PALETTE="#2DD4BF
+#60A5FA
+#A78BFA
+#F472B6
+#F87171
+#F59E0B"
+          fi
+
+          CURRENT=$(jq -r '.accent // empty' config.json)
+          ARR=($PALETTE)
+          IDX=-1
+          for i in "${!ARR[@]}"; do
+            if [ "${ARR[$i]}" = "$CURRENT" ]; then IDX=$i; break; fi
+          done
+          NEXT="${ARR[$(( (IDX + 1) % ${#ARR[@]} ))]}"
+
+          tmp=$(mktemp)
+          jq --arg nxt "$NEXT" '.accent = $nxt' config.json > "$tmp" && mv "$tmp" config.json
+          echo "accent: ${CURRENT:-<none>} -> $NEXT"
+
+      - name: Publish one queued note (optional)
+        shell: bash
+        run: |
+          set -e
+          if [ -s queue.txt ]; then
+            NEXT_LINE="$(head -n 1 queue.txt)"
+            tail -n +2 queue.txt > queue.tmp && mv queue.tmp queue.txt
+            echo "" >> NOTES.md
+            echo "## $(date -u +'%Y-%m-%d')" >> NOTES.md
+            echo "$NEXT_LINE" >> NOTES.md
+            echo "note published: $NEXT_LINE"
+          else
+            echo "no queue.txt or empty; skipping note publish"
+          fi
+
+      - name: Commit & push
+        run: |
+          git add config.json NOTES.md queue.txt 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: scheduled update"
+          git push
